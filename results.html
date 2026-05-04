@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>জননী কোচিং সেন্টার - ফলাফল পোর্টাল</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Noto Sans Bengali"', 'sans-serif'] },
+                    colors: { emerald: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 900: '#064e3b' } }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel Standalone -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase SDK (Compat Version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+
+    <style>
+        body { background: linear-gradient(135deg, #e6fcf2 0%, #d1f5e5 100%); min-height: 100vh; color: #022c22; }
+        .glass-panel { background: rgba(255, 255, 255, 0.45); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.7); box-shadow: 0 10px 40px rgba(4, 120, 87, 0.08); }
+        .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 8px 30px rgba(4, 120, 87, 0.05); }
+        .btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); transition: all 0.3s; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #34d399; border-radius: 10px; }
+        
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDML6tbSONWaW8-5_SfaIC63MtVk4Oq_Xs",
+            authDomain: "general-57884.firebaseapp.com",
+            databaseURL: "https://general-57884-default-rtdb.firebaseio.com",
+            projectId: "general-57884",
+            storageBucket: "general-57884.firebasestorage.app"
+        };
+
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.database();
+
+        const { useState, useEffect } = React;
+
+        const getGradeInfo = (percentage) => {
+            const p = Number(percentage) || 0;
+            if (p >= 80) return { grade: 'A+', color: 'text-emerald-700', bg: 'bg-emerald-100', border: 'border-emerald-200' };
+            if (p >= 70) return { grade: 'A', color: 'text-blue-700', bg: 'bg-blue-100', border: 'border-blue-200' };
+            if (p >= 60) return { grade: 'A-', color: 'text-indigo-700', bg: 'bg-indigo-100', border: 'border-indigo-200' };
+            if (p >= 50) return { grade: 'B', color: 'text-purple-700', bg: 'bg-purple-100', border: 'border-purple-200' };
+            if (p >= 40) return { grade: 'C', color: 'text-amber-700', bg: 'bg-amber-100', border: 'border-amber-200' };
+            if (p >= 33) return { grade: 'D', color: 'text-orange-700', bg: 'bg-orange-100', border: 'border-orange-200' };
+            return { grade: 'F', color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-200' };
+        };
+
+        const getCircleOffset = (obtained, fullMark) => {
+            const val = Number(obtained) || 0;
+            const max = Number(fullMark) || 1; 
+            const ratio = max > 0 ? val / max : 0;
+            const cappedRatio = Math.min(Math.max(ratio, 0), 1);
+            return 351.85 - (351.85 * cappedRatio);
+        };
+
+        const App = () => {
+            const [examsData, setExamsData] = useState({});
+            const [availableClasses, setAvailableClasses] = useState([]);
+            const [selectedClass, setSelectedClass] = useState('');
+            const [filteredExams, setFilteredExams] = useState({});
+            const [selectedExamId, setSelectedExamId] = useState('');
+            const [rollNumber, setRollNumber] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+            
+            const [studentResult, setStudentResult] = useState(null);
+            const [classStats, setClassStats] = useState(null);
+
+            useEffect(() => {
+                const fetchExams = async () => {
+                    try {
+                        const snapshot = await db.ref('exams').once('value');
+                        if (snapshot.exists()) {
+                            const data = snapshot.val();
+                            setExamsData(data);
+                            const classes = new Set();
+                            Object.values(data).forEach(ex => {
+                                const clsName = ex.meta?.class || ex.meta?.className;
+                                if (clsName) classes.add(clsName);
+                            });
+                            const classList = Array.from(classes).sort();
+                            setAvailableClasses(classList);
+                            if (classList.length > 0) setSelectedClass(classList[0]);
+                        }
+                    } catch (err) { console.error(err); }
+                };
+                fetchExams();
+            }, []);
+
+            useEffect(() => {
+                if (!selectedClass) return;
+                const filtered = {};
+                Object.entries(examsData).forEach(([id, ex]) => {
+                    const clsName = ex.meta?.class || ex.meta?.className;
+                    if (clsName === selectedClass) filtered[id] = ex;
+                });
+                setFilteredExams(filtered);
+                const keys = Object.keys(filtered).sort((a, b) => b.localeCompare(a));
+                setSelectedExamId(keys.length > 0 ? keys[0] : '');
+            }, [selectedClass, examsData]);
+
+            const handleSearch = async (e) => {
+                e.preventDefault();
+                if (!selectedExamId || !rollNumber) return setError('সব তথ্য সঠিকভাবে পূরণ করুন।');
+                
+                setLoading(true); setError(''); setStudentResult(null); setClassStats(null);
+
+                try {
+                    const snapshot = await db.ref(`exams/${selectedExamId}`).once('value');
+                    if (!snapshot.exists()) { setError('পরীক্ষার ডেটা পাওয়া যায়নি।'); setLoading(false); return; }
+
+                    const examData = snapshot.val();
+                    const results = examData.results || {};
+                    const searchRollStr = String(rollNumber).trim();
+                    const foundStudentKey = Object.keys(results).find(key => String(key).trim() === searchRollStr);
+                    
+                    if (!foundStudentKey) { setError(`রোল "${rollNumber}" এর ফলাফল পাওয়া যায়নি।`); setLoading(false); return; }
+
+                    const student = results[foundStudentKey];
+                    const allResultsArray = Object.values(results);
+
+                    // Stats Calc
+                    let highestTotal = 0, highestMCQ = 0, highestCQ = 0, totalScoreSum = 0;
+                    allResultsArray.forEach(res => {
+                        const t = Number(res.total) || 0; const mcq = Number(res.mcq?.correct) || 0; const cq = Number(res.cq) || 0;
+                        if (t > highestTotal) highestTotal = t;
+                        if (mcq > highestMCQ) highestMCQ = mcq;
+                        if (cq > highestCQ) highestCQ = cq;
+                        totalScoreSum += t;
+                    });
+
+                    // Rank & Top 3
+                    const sortedByTotal = [...allResultsArray].sort((a, b) => (Number(b.total) || 0) - (Number(a.total) || 0));
+                    const rankIndex = sortedByTotal.findIndex(r => String(r.roll).trim() === searchRollStr);
+                    const rank = rankIndex !== -1 ? rankIndex + 1 : 0;
+                    const top3 = sortedByTotal.slice(0, 3);
+                    
+                    // Mark Calc
+                    const examMeta = examData.meta || {};
+                    const totalMarksObj = examMeta.total_marks || {};
+                    const fullMarksMCQ = Number(totalMarksObj.mcq) || 0;
+                    const fullMarksSQ = Number(totalMarksObj.sq) || 0;
+                    const fullMarksCQ = Number(totalMarksObj.cq) || 0;
+                    const totalExamMarks = fullMarksMCQ + fullMarksSQ + fullMarksCQ;
+
+                    // Percentage
+                    const studentTotal = Number(student.total) || 0;
+                    const percentage = totalExamMarks > 0 ? (studentTotal / totalExamMarks) * 100 : 0;
+
+                    setStudentResult({
+                        ...student, total: studentTotal, rank, percentage: percentage.toFixed(1),
+                        gradeInfo: getGradeInfo(percentage), examMeta,
+                        fullMarks: { mcq: fullMarksMCQ, sq: fullMarksSQ, cq: fullMarksCQ, total: totalExamMarks }
+                    });
+
+                    setClassStats({
+                        totalStudents: allResultsArray.length,
+                        averageScore: allResultsArray.length > 0 ? (totalScoreSum / allResultsArray.length).toFixed(1) : 0,
+                        highestTotal, highestMCQ, highestCQ, top3
+                    });
+
+                } catch (err) { setError('সার্ভার ত্রুটি। আবার চেষ্টা করুন।'); } 
+                finally { setLoading(false); }
+            };
+
+            return (
+                <div className="min-h-screen pb-20 relative z-10 selection:bg-emerald-200">
+                    
+                    {/* Navbar */}
+                    <nav className="sticky top-0 z-50 bg-white/60 backdrop-blur-md border-b border-white shadow-sm">
+                        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-white p-1.5 rounded-xl shadow-sm border border-gray-100">
+                                    <img src="https://i.ibb.co.com/cKhJ7Sbv/1000032566-removebg-preview.png" alt="Logo" className="w-8 h-8 object-contain" />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl sm:text-2xl font-black text-emerald-900 leading-none">জননী কোচিং সেন্টার</h1>
+                                    <p className="text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-widest mt-1">ফলাফল পোর্টাল</p>
+                                </div>
+                            </div>
+                            {studentResult && (
+                                <button onClick={() => setStudentResult(null)} className="flex items-center gap-2 bg-white text-emerald-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-50 shadow-sm border border-emerald-100 transition-colors">
+                                    <i className="ph-bold ph-arrow-left text-lg"></i> <span className="hidden sm:inline">ফিরে যান</span>
+                                </button>
+                            )}
+                        </div>
+                    </nav>
+
+                    <main className="max-w-4xl mx-auto p-4 sm:p-6 mt-4">
+                        
+                        {/* ── SEARCH VIEW ── */}
+                        {!studentResult && (
+                            <div className="flex flex-col items-center justify-center min-h-[65vh] animate-[fadeIn_0.5s_ease-out]">
+                                <div className="glass-panel w-full max-w-md p-8 sm:p-10 rounded-[40px] shadow-2xl relative">
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-[25px] border-2 border-emerald-50 shadow-xl flex items-center justify-center animate-float">
+                                        <i className="ph-bold ph-magnifying-glass text-4xl text-emerald-500"></i>
+                                    </div>
+                                    
+                                    <div className="text-center mt-10 mb-8">
+                                        <h2 className="text-2xl font-black text-emerald-900">ফলাফল খুঁজুন</h2>
+                                        <p className="text-xs font-bold text-emerald-600 mt-2">নিচের তথ্যগুলো দিয়ে আপনার রেজাল্ট দেখুন</p>
+                                    </div>
+
+                                    {error && (
+                                        <div className="bg-red-50 border border-red-100 text-red-600 p-3 rounded-2xl text-sm font-bold flex items-center gap-2 mb-6 shadow-sm">
+                                            <i className="ph-fill ph-warning-circle text-xl shrink-0"></i>
+                                            <p>{error}</p>
+                                        </div>
+                                    )}
+
+                                    <form onSubmit={handleSearch} className="space-y-5">
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest ml-2">শ্রেণি নির্বাচন করুন</label>
+                                            <div className="relative">
+                                                <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="w-full p-4 pl-12 bg-white/80 border border-white shadow-sm rounded-2xl font-bold text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 appearance-none cursor-pointer">
+                                                    {availableClasses.length === 0 && <option value="">লোড হচ্ছে...</option>}
+                                                    {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                                <i className="ph-bold ph-graduation-cap absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-xl pointer-events-none"></i>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest ml-2">পরীক্ষা নির্বাচন করুন</label>
+                                            <div className="relative">
+                                                <select value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} disabled={!selectedClass} className="w-full p-4 pl-12 bg-white/80 border border-white shadow-sm rounded-2xl font-bold text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 appearance-none cursor-pointer disabled:opacity-60">
+                                                    {Object.keys(filteredExams).length === 0 ? <option value="">কোনো পরীক্ষা নেই</option> : Object.entries(filteredExams).map(([id, ex]) => <option key={id} value={id}>{ex.meta?.subject || ''} ({ex.meta?.date || ''})</option>)}
+                                                </select>
+                                                <i className="ph-bold ph-file-text absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-xl pointer-events-none"></i>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest ml-2">রোল নম্বর / ট্র্যাকিং আইডি</label>
+                                            <div className="relative">
+                                                <input type="number" value={rollNumber} onChange={e => setRollNumber(e.target.value)} placeholder="যেমন: 1001" className="w-full p-4 pl-12 bg-white/80 border border-white shadow-sm rounded-2xl font-black text-xl tracking-widest text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400" />
+                                                <i className="ph-bold ph-user absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-xl pointer-events-none"></i>
+                                            </div>
+                                        </div>
+
+                                        <button type="submit" disabled={loading || !selectedExamId} className="w-full py-4 btn-primary rounded-[20px] font-black text-lg mt-4 flex items-center justify-center gap-2">
+                                            {loading ? <i className="ph-bold ph-spinner-gap animate-spin text-2xl"></i> : 'ফলাফল দেখুন'}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── RESULT VIEW ── */}
+                        {studentResult && classStats && (
+                            <div className="space-y-8 animate-[fadeInUp_0.5s_ease-out]">
+                                
+                                {/* Top ID Card (Matched with Screenshot + Enhanced) */}
+                                <div className="glass-panel rounded-[40px] p-8 text-center relative border border-white mt-8 overflow-hidden">
+                                    <div className="absolute -right-20 -top-20 w-64 h-64 bg-gradient-to-br from-emerald-300/30 to-teal-300/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                                    <div className="relative w-40 h-40 mx-auto mb-6">
+                                        <div className="w-full h-full bg-white rounded-[35px] border-[5px] border-emerald-400 shadow-sm flex flex-col items-center justify-center p-2 relative z-10">
+                                            <p className="text-[10px] font-bold text-emerald-700 mb-1">প্রাপ্ত নম্বর</p>
+                                            <h1 className="text-5xl font-black text-emerald-900 leading-none">{studentResult.total}</h1>
+                                            <div className="w-8 h-[2px] bg-gray-200 my-1"></div>
+                                            <p className="text-xs font-bold text-gray-400">/ {studentResult.fullMarks.total}</p>
+                                        </div>
+                                        <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-[85%] py-2 border rounded-full shadow-md z-20 flex items-center justify-center gap-1.5 ${studentResult.gradeInfo.bg} ${studentResult.gradeInfo.color} ${studentResult.gradeInfo.border}`}>
+                                            <i className="ph-fill ph-star text-sm"></i>
+                                            <span className="font-black text-sm">গ্রেড: {studentResult.gradeInfo.grade}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="inline-block px-4 py-1.5 bg-white border border-emerald-100 rounded-full text-[10px] font-bold text-emerald-700 mb-4 shadow-sm">
+                                        {studentResult.examMeta?.subject || ''} • {studentResult.examMeta?.class || studentResult.examMeta?.className || ''}
+                                    </div>
+
+                                    <h2 className="text-3xl font-black text-[#022c22] mb-6">{studentResult.name || 'শিক্ষার্থী'}</h2>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        <div className="bg-white px-4 py-3 rounded-[20px] flex items-center gap-3 shadow-sm border border-gray-50">
+                                            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0"><i className="ph-bold ph-user text-lg"></i></div>
+                                            <div className="text-left">
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase">রোল</p>
+                                                <p className="font-black text-emerald-900 text-lg leading-tight">{studentResult.roll}</p>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white px-4 py-3 rounded-[20px] flex items-center gap-3 shadow-sm border border-gray-50">
+                                            <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><i className="ph-bold ph-medal text-lg"></i></div>
+                                            <div className="text-left">
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase">মেধা তালিকা</p>
+                                                <p className="font-black text-emerald-900 text-lg leading-tight">{studentResult.rank > 0 ? `${studentResult.rank} তম` : '-'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white px-4 py-3 rounded-[20px] flex items-center gap-3 shadow-sm border border-gray-50 col-span-2 md:col-span-1 mx-auto md:mx-0 w-full md:w-auto">
+                                            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0"><i className="ph-bold ph-target text-lg"></i></div>
+                                            <div className="text-left">
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase">শতকরা</p>
+                                                <p className="font-black text-emerald-900 text-lg leading-tight">{studentResult.percentage}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Breakdowns (MCQ, SQ, CQ) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                                    <div className="glass-card rounded-[35px] p-6">
+                                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+                                            <div className="flex items-center gap-2">
+                                                <i className="ph-bold ph-check-circle text-emerald-500 text-xl"></i>
+                                                <h3 className="font-black text-emerald-900 text-lg">MCQ</h3>
+                                            </div>
+                                            <div className="text-2xl font-black text-emerald-600">
+                                                {studentResult.mcq?.correct || 0}<span className="text-sm text-gray-400">/{studentResult.fullMarks.mcq}</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                                <span className="text-xs font-bold text-emerald-700 flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full"></div>সঠিক</span>
+                                                <span className="font-black text-emerald-700">{studentResult.mcq?.correct || 0} টি</span>
+                                            </div>
+                                            <div className="flex justify-between p-3 bg-red-50 rounded-2xl border border-red-100">
+                                                <span className="text-xs font-bold text-red-700 flex items-center gap-2"><div className="w-2 h-2 bg-red-500 rounded-full"></div>ভুল</span>
+                                                <span className="font-black text-red-700">{studentResult.mcq?.wrong || 0} টি</span>
+                                            </div>
+                                            <div className="flex justify-between p-3 bg-gray-100 rounded-2xl border border-gray-200">
+                                                <span className="text-xs font-bold text-gray-600 flex items-center gap-2"><div className="w-2 h-2 bg-gray-400 rounded-full"></div>দাগায়নি</span>
+                                                <span className="font-black text-gray-700">{studentResult.mcq?.skipped || 0} টি</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="glass-card rounded-[35px] p-6 flex flex-col">
+                                        <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                                            <h3 className="font-black text-emerald-900 text-lg flex items-center gap-2"><i className="ph-bold ph-file-text text-blue-500 text-xl"></i> SQ</h3>
+                                        </div>
+                                        <div className="flex-1 flex flex-col items-center justify-center">
+                                            <div className="relative">
+                                                <svg className="w-32 h-32 transform -rotate-90">
+                                                    <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-200" />
+                                                    <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-blue-500 drop-shadow-md" 
+                                                        strokeDasharray={351.85} strokeDashoffset={getCircleOffset(studentResult.sq, studentResult.fullMarks.sq)} strokeLinecap="round" />
+                                                </svg>
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                    <span className="text-3xl font-black text-blue-600">{Number(studentResult.sq) || 0}</span>
+                                                    <span className="text-[10px] font-bold text-gray-400 border-t border-gray-300 mt-1 pt-1">পূর্ণমান {studentResult.fullMarks.sq}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="glass-card rounded-[35px] p-6 flex flex-col">
+                                        <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                                            <h3 className="font-black text-emerald-900 text-lg flex items-center gap-2"><i className="ph-bold ph-stack text-purple-500 text-xl"></i> CQ</h3>
+                                        </div>
+                                        <div className="flex-1 flex flex-col items-center justify-center">
+                                            <div className="relative">
+                                                <svg className="w-32 h-32 transform -rotate-90">
+                                                    <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-200" />
+                                                    <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-purple-500 drop-shadow-md" 
+                                                        strokeDasharray={351.85} strokeDashoffset={getCircleOffset(studentResult.cq, studentResult.fullMarks.cq)} strokeLinecap="round" />
+                                                </svg>
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                    <span className="text-3xl font-black text-purple-600">{Number(studentResult.cq) || 0}</span>
+                                                    <span className="text-[10px] font-bold text-gray-400 border-t border-gray-300 mt-1 pt-1">পূর্ণমান {studentResult.fullMarks.cq}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Restore: Class Stats & Leaderboard */}
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {/* Class Stats */}
+                                    <div className="glass-panel rounded-[40px] p-6 sm:p-8 border border-white col-span-1">
+                                        <h3 className="text-lg font-black text-[#022c22] mb-6 flex items-center gap-2"><i className="ph-bold ph-trend-up text-emerald-500 text-xl"></i> ক্লাসের পরিসংখ্যান</h3>
+                                        <div className="space-y-4">
+                                            <div className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600"><i className="ph-bold ph-users text-lg"></i></div>
+                                                    <span className="text-sm font-bold text-gray-700">মোট পরীক্ষার্থী</span>
+                                                </div>
+                                                <span className="text-xl font-black text-[#022c22]">{classStats.totalStudents} জন</span>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600"><i className="ph-bold ph-chart-pie-slice text-lg"></i></div>
+                                                    <span className="text-sm font-bold text-gray-700">গড় নম্বর</span>
+                                                </div>
+                                                <span className="text-xl font-black text-[#022c22]">{classStats.averageScore}</span>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-sm border border-amber-100">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600"><i className="ph-bold ph-trophy text-lg"></i></div>
+                                                    <span className="text-sm font-bold text-gray-700">সর্বোচ্চ নম্বর</span>
+                                                </div>
+                                                <span className="text-xl font-black text-amber-600">{classStats.highestTotal}</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-6 pt-5 border-t border-white/50 grid grid-cols-2 gap-3">
+                                            <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-2xl text-center">
+                                                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">সর্বোচ্চ MCQ</span>
+                                                <span className="font-black text-emerald-600 text-lg">{classStats.highestMCQ}</span>
+                                            </div>
+                                            <div className="bg-purple-50/50 border border-purple-100 p-3 rounded-2xl text-center">
+                                                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">সর্বোচ্চ CQ</span>
+                                                <span className="font-black text-purple-600 text-lg">{classStats.highestCQ}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Leaderboard */}
+                                    <div className="glass-panel rounded-[40px] p-6 sm:p-8 border border-white col-span-1 lg:col-span-2 relative overflow-hidden">
+                                        <i className="ph-fill ph-crown absolute top-0 right-0 p-8 opacity-5 text-[150px] pointer-events-none"></i>
+                                        <h3 className="text-lg font-black text-[#022c22] mb-6 flex items-center gap-2"><i className="ph-fill ph-medal text-amber-500 text-xl"></i> মেধা তালিকা (Top 3)</h3>
+                                        
+                                        <div className="space-y-4">
+                                            {classStats.top3.map((student, index) => {
+                                                const isCurrentUser = String(student.roll).trim() === String(rollNumber).trim();
+                                                const medals = [
+                                                    { color: 'text-amber-500', bg: 'bg-amber-100', border: 'border-amber-200' },
+                                                    { color: 'text-gray-500', bg: 'bg-gray-100', border: 'border-gray-200' },
+                                                    { color: 'text-amber-800', bg: 'bg-orange-100', border: 'border-orange-200' }
+                                                ];
+                                                const medal = medals[index];
+
+                                                return (
+                                                    <div key={student.roll} className={`p-4 sm:p-5 rounded-3xl flex items-center gap-4 transition-all duration-300 ${isCurrentUser ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-lg scale-[1.02]' : 'bg-white hover:bg-gray-50 shadow-sm border border-gray-100'}`}>
+                                                        <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-black text-lg shadow-sm border ${isCurrentUser ? 'bg-white text-emerald-600 border-white' : `${medal.bg} ${medal.color} ${medal.border}`}`}>
+                                                            #{index + 1}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className={`font-black truncate text-lg ${isCurrentUser ? 'text-white' : 'text-[#022c22]'}`}>
+                                                                {student.name || `রোল: ${student.roll}`}
+                                                            </h4>
+                                                            <p className={`text-xs font-bold ${isCurrentUser ? 'text-emerald-100' : 'text-gray-500'}`}>
+                                                                {student.name ? `রোল: ${student.roll}` : 'নাম দেওয়া হয়নি'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className={`text-2xl font-black ${isCurrentUser ? 'text-white' : 'text-emerald-600'}`}>{student.total}</div>
+                                                            <div className={`text-[10px] font-bold uppercase tracking-widest ${isCurrentUser ? 'text-emerald-100' : 'text-gray-400'}`}>নম্বর</div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+
+    <style>
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</body>
+</html>
