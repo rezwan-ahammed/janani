@@ -630,7 +630,7 @@
                 { key: 'teachers', label: 'শিক্ষকমণ্ডলী' },
                 { key: 'gallery', label: 'গ্যালারি' },
                 { key: 'notices', label: 'নোটিশ বোর্ড' },
-            ];
+              ];
 
             return (
                 <div className="min-h-screen flex flex-col font-sans relative z-10">
@@ -674,7 +674,8 @@
                                     <button key={l.key} onClick={() => navigateTo(l.key)} className="text-left text-nature-900 p-3 hover:bg-white/60 rounded-xl transition border border-transparent">{l.label}</button>
                                 ))}
                                 <div className="border-t border-white/40 my-1"></div>
-                                <a href="student_portal.html" className="bg-white/60 border border-white/80 text-emerald-900 text-center p-3.5 rounded-xl flex justify-center gap-2 shadow-sm transition hover:bg-white/80"><Icons.User /> পোর্টাল</a>
+                                 <a href="results.html" className="bg-white/60 border border-white/80 text-emerald-900 text-center p-3.5 rounded-xl flex justify-center gap-2 shadow-sm transition hover:bg-white/80"><Icons.User />পরীক্ষার রেজাল্ট</a>
+                                <a href="student_portal.html" className="bg-white/60 border border-white/80 text-emerald-900 text-center p-3.5 rounded-xl flex justify-center gap-2 shadow-sm transition hover:bg-white/80"><Icons.User />স্টুডেন্ট পোর্টাল</a>
                                 <a href="admin.html" className="glass-btn text-center p-3.5 rounded-xl flex justify-center gap-2 shadow-md"><Icons.Settings /> অ্যাডমিন</a>
                             </div>
                         )}
