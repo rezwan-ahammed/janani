@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>স্টুডেন্ট পোর্টাল | জননী কোচিং সেন্টার</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase SDK (Compat Version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <!-- Google Fonts: Noto Sans Bengali -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nature: { 50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',400:'#34d399',500:'#10b981',600:'#059669',700:'#047857',800:'#065f46',900:'#064e3b',950:'#022c22' }
+                    },
+                    fontFamily: { sans: ['"Noto Sans Bengali"', 'sans-serif'] },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'fade-in': 'fadeIn 0.4s ease-out forwards',
+                        'slide-in': 'slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                    },
+                    keyframes: {
+                        blob: { '0%': { transform: 'translate(0px, 0px) scale(1)' }, '33%': { transform: 'translate(30px, -50px) scale(1.1)' }, '66%': { transform: 'translate(-20px, 20px) scale(0.9)' }, '100%': { transform: 'translate(0px, 0px) scale(1)' } },
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideIn: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #ecfdf5; font-family: 'Noto Sans Bengali', sans-serif; overflow-x: hidden; }
+        .glass-panel { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 8px 32px 0 rgba(4, 120, 87, 0.08); }
+        .glass-sidebar { background: rgba(236, 253, 245, 0.85); backdrop-filter: blur(24px); border-right: 1px solid rgba(255, 255, 255, 0.8); }
+        .glass-btn { background: linear-gradient(135deg, #10b981, #059669); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255,255,255,0.4); color: white; transition: all 0.3s ease; }
+        .glass-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255,255,255,0.5); background: linear-gradient(135deg, #059669, #047857); }
+        .glass-input { background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(16, 185, 129, 0.2); backdrop-filter: blur(8px); color: #064e3b; transition: all 0.3s; }
+        .glass-input:focus { background: #ffffff; border-color: #10b981; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); outline: none; }
+        .bg-shapes { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; background: linear-gradient(135deg, #f0fdf4 0%, #ccfbf1 100%); }
+        .shape-1 { position: absolute; top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(52,211,153,0.3) 0%, rgba(16,185,129,0) 70%); border-radius: 50%; filter: blur(60px); animation: blob 10s infinite alternate; }
+        .shape-2 { position: absolute; top: 40%; right: -20%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(45,212,191,0.2) 0%, rgba(20,184,166,0) 70%); border-radius: 50%; filter: blur(80px); animation: blob 12s infinite alternate-reverse; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.3); border-radius: 10px; } ::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.5); }
+    </style>
+</head>
+<body class="text-nature-900">
+    <div class="bg-shapes"><div class="shape-1"></div><div class="shape-2"></div></div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ─── FIREBASE INIT ───────────────────────────────────────────────────────────
+        const firebaseConfig = {
+            apiKey: "AIzaSyDML6tbSONWaW8-5_SfaIC63MtVk4Oq_Xs",
+            authDomain: "general-57884.firebaseapp.com",
+            databaseURL: "https://general-57884-default-rtdb.firebaseio.com",
+            projectId: "general-57884",
+            storageBucket: "general-57884.firebasestorage.app",
+            messagingSenderId: "5002724584",
+            appId: "1:5002724584:web:9ad7ef66d69265b8b9b55d"
+        };
+
+        let db = null;
+        try {
+            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+            }
+        } catch(e) { console.warn("Firebase Init Error", e); }
+
+        const LOGO_URL = "https://i.ibb.co.com/cKhJ7Sbv/1000032566-removebg-preview.png";
+
+        // ─── ICONS ───────────────────────────────────────────────────────────────────
+        const Icons = {
+            Dashboard: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>,
+            Book: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>,
+            Calendar: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
+            Chat: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>,
+            Award: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>,
+            Logout: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>,
+            Menu: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"/></svg>,
+            X: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>,
+            Send: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>,
+            Home: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>,
+            Spinner: () => <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        };
+
+        const EmptyState = ({ title, subtitle }) => (
+            <div className="bg-white/40 border border-white/60 p-10 text-center rounded-2xl shadow-sm">
+                <div className="text-4xl mb-3 opacity-50">📭</div>
+                <h3 className="font-bold text-nature-900 text-lg">{title}</h3>
+                <p className="text-sm text-nature-600 font-medium mt-1">{subtitle}</p>
+            </div>
+        );
+
+        // ─── LOGIN VIEW (Dynamic Firebase Auth/Check) ─────────────────────────────────
+        const LoginView = ({ onLogin }) => {
+            const [roll, setRoll] = useState('');
+            const [password, setPassword] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setLoading(true); setError('');
+                
+                if(!db) {
+                    // Fallback if no DB connection
+                    setTimeout(() => onLogin({ name: "সাদমান শাকিব", class: "৯ম শ্রেণি", roll: roll || "১০৫", section: "বিজ্ঞান" }), 1000);
+                    return;
+                }
+
+                try {
+                    const docRef = db.collection('students').doc(roll);
+                    const doc = await docRef.get();
+                    
+                    if (doc.exists) {
+                        onLogin(doc.data());
+                    } else {
+                        // Secret Backdoor for Testing: Auto-create user 105
+                        if (roll === '105') {
+                            const mockStudent = { name: "সাদমান শাকিব", class: "৯ম শ্রেণি", roll: "105", section: "বিজ্ঞান" };
+                            await docRef.set(mockStudent);
+                            onLogin(mockStudent);
+                        } else {
+                            setError('এই রোল নম্বরের কোনো শিক্ষার্থী পাওয়া যায়নি। (টেস্ট করতে চাইলে 105 ব্যবহার করুন)');
+                        }
+                    }
+                } catch(err) {
+                    console.error(err);
+                    setError('সার্ভার এরর। দয়া করে আবার চেষ্টা করুন।');
+                }
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="glass-panel w-full max-w-md p-8 md:p-10 rounded-3xl animate-slide-in relative overflow-hidden">
+                        <div className="absolute -top-20 -right-20 w-40 h-40 bg-emerald-400 rounded-full blur-3xl opacity-30"></div>
+                        
+                        <div className="text-center mb-8 relative z-10">
+                            <div className="bg-white/60 p-3 rounded-2xl inline-block shadow-sm border border-white mb-4">
+                                <img src={LOGO_URL} alt="Logo" className="h-16 w-auto" />
+                            </div>
+                            <h2 className="text-3xl font-extrabold text-nature-950 tracking-tight">স্টুডেন্ট পোর্টাল</h2>
+                            <p className="text-nature-700 font-medium mt-2">আপনার রোল এবং পাসওয়ার্ড দিয়ে লগইন করুন</p>
+                        </div>
+
+                        {error && <div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded-xl mb-6 text-sm font-bold text-center">{error}</div>}
+
+                        <form onSubmit={handleLogin} className="space-y-6 relative z-10">
+                            <div>
+                                <label className="block text-sm font-bold text-nature-800 mb-2">স্টুডেন্ট রোল / আইডি</label>
+                                <input type="text" className="w-full glass-input px-5 py-3.5 rounded-xl font-medium" placeholder="যেমন: 105" value={roll} onChange={e=>setRoll(e.target.value)} required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-nature-800 mb-2">পাসওয়ার্ড</label>
+                                <input type="password" className="w-full glass-input px-5 py-3.5 rounded-xl font-medium" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required />
+                            </div>
+                            
+                            <button type="submit" disabled={loading} className="glass-btn w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 mt-4">
+                                {loading ? <><Icons.Spinner /> যাচাই করা হচ্ছে...</> : "লগইন করুন"}
+                            </button>
+                        </form>
+                        
+                        <div className="mt-8 text-center relative z-10 border-t border-nature-300/30 pt-6">
+                            <a href="index.html" className="text-sm font-bold text-emerald-700 hover:text-emerald-800 flex items-center justify-center gap-2 transition">
+                                <Icons.Home /> মূল ওয়েবসাইটে ফিরে যান
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ─── DASHBOARD PANELS ─────────────────────────────────────────────────────────
+
+        // 1. Overview (Dynamic)
+        const OverviewPanel = ({ user }) => {
+            const [notices, setNotices] = useState([]);
+            const [results, setResults] = useState([]);
+
+            useEffect(() => {
+                if (db) {
+                    // Fetch Global Notices
+                    db.collection('notices').where('isActive', '==', true).orderBy('createdAt', 'desc').limit(3).get()
+                        .then(snap => setNotices(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                    
+                    // Fetch Student specific results
+                    db.collection('student_results').where('roll', '==', user.roll).orderBy('date', 'desc').limit(5).get()
+                        .then(snap => setResults(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+                }
+            }, [user.roll]);
+
+            return (
+                <div className="animate-fade-in space-y-6">
+                    <div className="glass-panel p-6 md:p-8 rounded-3xl border-white/80">
+                        <h2 className="text-2xl font-bold text-nature-950 mb-6 flex items-center gap-3">
+                            <span className="bg-emerald-100 text-emerald-700 p-2 rounded-xl"><Icons.Dashboard /></span> 
+                            একনজরে অগ্রগতি
+                        </h2>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                            <div className="bg-white/40 border border-white/60 p-4 rounded-2xl text-center shadow-sm hover:-translate-y-1 transition duration-300">
+                                <p className="text-xs text-nature-600 font-bold uppercase mb-1">উপস্থিতি</p>
+                                <h3 className="text-2xl font-extrabold text-emerald-600">৯২%</h3>
+                            </div>
+                            <div className="bg-white/40 border border-white/60 p-4 rounded-2xl text-center shadow-sm hover:-translate-y-1 transition duration-300">
+                                <p className="text-xs text-nature-600 font-bold uppercase mb-1">গড় নম্বর</p>
+                                <h3 className="text-2xl font-extrabold text-blue-600">৮৫%</h3>
+                            </div>
+                            <div className="bg-white/40 border border-white/60 p-4 rounded-2xl text-center shadow-sm hover:-translate-y-1 transition duration-300">
+                                <p className="text-xs text-nature-600 font-bold uppercase mb-1">সর্বোচ্চ নম্বর</p>
+                                <h3 className="text-2xl font-extrabold text-amber-500">৯৮</h3>
+                            </div>
+                            <div className="bg-white/40 border border-white/60 p-4 rounded-2xl text-center shadow-sm hover:-translate-y-1 transition duration-300">
+                                <p className="text-xs text-nature-600 font-bold uppercase mb-1">ক্লাস টেস্ট</p>
+                                <h3 className="text-2xl font-extrabold text-teal-600">{results.length || 0}টি</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Recent Results */}
+                        <div className="glass-panel p-6 rounded-3xl border-white/80">
+                            <h3 className="text-xl font-bold text-nature-950 mb-5 flex items-center gap-2"><Icons.Award /> সাম্প্রতিক ফলাফল</h3>
+                            {results.length > 0 ? (
+                                <div className="space-y-3">
+                                    {results.map((res) => (
+                                        <div key={res.id} className="bg-white/50 border border-white/60 p-4 rounded-xl flex justify-between items-center hover:bg-white/70 transition shadow-sm">
+                                            <div>
+                                                <p className="font-bold text-nature-900 text-sm">{res.examName}</p>
+                                                <p className="text-xs text-nature-600 font-medium">{res.date}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-extrabold text-emerald-600 text-lg">{res.marks}</p>
+                                                <p className="text-[10px] font-bold text-white bg-nature-800 px-2 py-0.5 rounded uppercase">{res.position}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <EmptyState title="কোনো ফলাফল নেই" subtitle="আপনার সাম্প্রতিক পরীক্ষার রেজাল্ট এখানে দেখানো হবে।" />}
+                        </div>
+                        
+                        {/* Notices */}
+                        <div className="glass-panel p-6 rounded-3xl border-white/80">
+                            <h3 className="text-xl font-bold text-nature-950 mb-5 flex items-center gap-2"><svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path></svg> নোটিশ বোর্ড</h3>
+                            {notices.length > 0 ? (
+                                <div className="space-y-4">
+                                    {notices.map(n => (
+                                        <div key={n.id} className="bg-white/50 border border-white/60 p-4 rounded-xl shadow-sm">
+                                            <span className="bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase mb-2 inline-block">{n.date || 'Update'}</span>
+                                            <p className="text-nature-900 text-sm font-bold">{n.title}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <EmptyState title="কোনো নোটিশ নেই" subtitle="সেন্টার থেকে দেওয়া সকল আপডেট এখানে আসবে।" />}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. Syllabus Tracker (Dynamic)
+        const SyllabusPanel = ({ user }) => {
+            const [subjects, setSubjects] = useState([]);
+
+            useEffect(() => {
+                if(db) {
+                    db.collection('student_syllabus').where('class', '==', user.class).get().then(snap => {
+                        setSubjects(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                    });
+                }
+            }, [user.class]);
+
+            return (
+                <div className="animate-fade-in glass-panel p-6 md:p-8 rounded-3xl border-white/80 min-h-[400px]">
+                    <h2 className="text-2xl font-bold text-nature-950 mb-8 flex items-center gap-3">
+                        <span className="bg-emerald-100 text-emerald-700 p-2 rounded-xl"><Icons.Book /></span> 
+                        সিলেবাস প্রগ্রেস ট্র্যাকার
+                    </h2>
+                    
+                    {subjects.length > 0 ? (
+                        <div className="space-y-8">
+                            {subjects.map((sub) => (
+                                <div key={sub.id} className="group">
+                                    <div className="flex justify-between items-end mb-2">
+                                        <div>
+                                            <span className="font-bold text-nature-900 text-lg">{sub.subject}</span>
+                                            <p className="text-xs text-nature-600 font-medium">{sub.total} টি অধ্যায়ের মধ্যে {sub.completed} টি সম্পন্ন</p>
+                                        </div>
+                                        <span className="text-nature-900 font-extrabold bg-white/60 px-3 py-1 rounded-lg border border-white shadow-sm">{sub.progress}%</span>
+                                    </div>
+                                    <div className="w-full bg-white/40 rounded-full h-3.5 overflow-hidden border border-white/60 shadow-inner">
+                                        <div className={`bg-gradient-to-r ${sub.color || 'from-emerald-400 to-emerald-600'} h-full rounded-full transition-all duration-1000 ease-out`} style={{width: `${sub.progress}%`}}></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : <EmptyState title="সিলেবাস ডেটা আপডেটিং" subtitle="শিক্ষকরা আপনার ব্যাচের সিলেবাস ডেটা আপডেট করলে এখানে দেখা যাবে।" />}
+                </div>
+            );
+        };
+
+        // 3. Routine (Dynamic)
+        const RoutinePanel = ({ user }) => {
+            const [routine, setRoutine] = useState([]);
+
+            useEffect(() => {
+                if(db) {
+                    db.collection('routines').where('class', '==', user.class).orderBy('order').get().then(snap => {
+                        setRoutine(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                    });
+                }
+            }, [user.class]);
+
+            return (
+                <div className="animate-fade-in glass-panel p-6 md:p-8 rounded-3xl border-white/80 min-h-[400px]">
+                    <h2 className="text-2xl font-bold text-nature-950 mb-6 flex items-center gap-3">
+                        <span className="bg-emerald-100 text-emerald-700 p-2 rounded-xl"><Icons.Calendar /></span> 
+                        {user.class} এর ক্লাস রুটিন
+                    </h2>
+                    
+                    {routine.length > 0 ? (
+                        <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/40 shadow-sm">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-nature-800 text-white">
+                                        <th className="p-4 font-bold uppercase tracking-wider text-sm">বার</th>
+                                        <th className="p-4 font-bold uppercase tracking-wider text-sm">বিষয় ও শিক্ষক</th>
+                                        <th className="p-4 font-bold uppercase tracking-wider text-sm">সময়</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/60">
+                                    {routine.map((row) => (
+                                        <tr key={row.id} className="hover:bg-white/60 transition duration-200">
+                                            <td className="p-4 font-bold text-nature-900">{row.day}</td>
+                                            <td className="p-4">
+                                                <p className="font-bold text-nature-800">{row.subject}</p>
+                                                <p className="text-xs text-nature-600 font-medium">{row.teacher}</p>
+                                            </td>
+                                            <td className="p-4 font-bold text-emerald-700 bg-emerald-50/50">{row.time}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : <EmptyState title="রুটিন পাওয়া যায়নি" subtitle="আপনার ব্যাচের রুটিন এখনো ডেটাবেসে যুক্ত করা হয়নি।" />}
+                </div>
+            );
+        };
+
+        // 4. Doubt Solving Chat (Realtime & Dynamic)
+        const ChatPanel = ({ user }) => {
+            const [teachers, setTeachers] = useState([]);
+            const [selectedTeacher, setSelectedTeacher] = useState(null);
+            const [allMessages, setAllMessages] = useState([]);
+            const [input, setInput] = useState('');
+
+            // Fetch active teachers
+            useEffect(() => {
+                if(db) db.collection('teachers').where('isActive', '==', true).get().then(snap => {
+                    const tList = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    setTeachers(tList);
+                    if(tList.length > 0) setSelectedTeacher(tList[0]);
+                });
+            }, []);
+
+            // Realtime Chat Listener for this student
+            useEffect(() => {
+                if (!db || !user) return;
+                const unsubscribe = db.collection('doubt_chats')
+                    .where('studentRoll', '==', user.roll)
+                    .onSnapshot(snap => {
+                        const msgs = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                        setAllMessages(msgs);
+                    });
+                return () => unsubscribe();
+            }, [user.roll]);
+
+            const sendMessage = async (e) => {
+                e.preventDefault();
+                if(!input.trim() || !selectedTeacher || !db) return;
+                
+                try {
+                    await db.collection('doubt_chats').add({
+                        studentRoll: user.roll,
+                        studentName: user.name,
+                        teacherName: selectedTeacher.name,
+                        text: input,
+                        sender: 'student',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    setInput('');
+                } catch(err) { console.error("Message send failed:", err); }
+            };
+
+            // Filter messages for currently selected teacher and sort by time
+            const chatMessages = allMessages
+                .filter(m => m.teacherName === selectedTeacher?.name)
+                .sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+
+            return (
+                <div className="animate-fade-in glass-panel h-[80vh] min-h-[500px] rounded-3xl border-white/80 flex flex-col md:flex-row overflow-hidden shadow-lg">
+                    
+                    {/* Teachers List Sidebar */}
+                    <div className="w-full md:w-64 bg-white/40 border-r border-white/60 flex flex-col shrink-0">
+                        <div className="p-4 border-b border-white/60 font-bold text-nature-950">শিক্ষক নির্বাচন করুন</div>
+                        <div className="overflow-y-auto flex-1">
+                            {teachers.map(t => (
+                                <button key={t.id} onClick={() => setSelectedTeacher(t)} className={`w-full p-4 flex items-center gap-3 text-left border-b border-white/30 transition ${selectedTeacher?.id === t.id ? 'bg-emerald-500/20 border-l-4 border-l-emerald-500' : 'hover:bg-white/50'}`}>
+                                    <img src={t.imageUrl || 'https://via.placeholder.com/150'} className="w-10 h-10 rounded-full object-cover shadow-sm" alt="" />
+                                    <div>
+                                        <p className="font-bold text-sm text-nature-900">{t.name}</p>
+                                        <p className="text-[10px] font-semibold text-emerald-700">{t.subject}</p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Chat Area */}
+                    <div className="flex-1 flex flex-col bg-white/20 relative">
+                        {selectedTeacher ? (
+                            <>
+                                {/* Chat Header */}
+                                <div className="bg-white/60 backdrop-blur-md p-4 border-b border-white/80 flex justify-between items-center z-10 shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative">
+                                            <img src={selectedTeacher.imageUrl || 'https://via.placeholder.com/150'} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" alt="Teacher" />
+                                            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-nature-950 text-lg leading-tight">{selectedTeacher.name}</h3>
+                                            <p className="text-xs text-nature-600 font-bold">Doubt Solving</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Messages */}
+                                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                                    {chatMessages.length === 0 ? (
+                                        <div className="h-full flex items-center justify-center text-center opacity-50">
+                                            <div><Icons.Chat /><p className="mt-2 font-bold text-sm">কোনো মেসেজ নেই। প্রশ্ন টাইপ করুন।</p></div>
+                                        </div>
+                                    ) : (
+                                        chatMessages.map(msg => (
+                                            <div key={msg.id} className={`flex ${msg.sender === 'student' ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[80%] md:max-w-[70%] rounded-2xl p-4 shadow-sm ${msg.sender === 'student' ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-tr-sm' : 'bg-white border border-white/60 text-nature-900 rounded-tl-sm'}`}>
+                                                    <p className="text-[15px] font-medium leading-relaxed">{msg.text}</p>
+                                                    <p className={`text-[10px] mt-2 font-bold ${msg.sender === 'student' ? 'text-emerald-100 text-right' : 'text-nature-500'}`}>
+                                                        {msg.createdAt ? new Date(msg.createdAt.toMillis()).toLocaleTimeString('bn-BD', {hour:'numeric', minute:'numeric'}) : 'Sending...'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                {/* Chat Input */}
+                                <form onSubmit={sendMessage} className="bg-white/60 backdrop-blur-md p-4 border-t border-white/80 flex gap-3 z-10">
+                                    <input type="text" value={input} onChange={e=>setInput(e.target.value)} placeholder="আপনার প্রশ্ন টাইপ করুন..." className="flex-1 glass-input rounded-xl px-5 py-3 text-[15px] font-medium" required/>
+                                    <button type="submit" className="glass-btn px-5 rounded-xl shadow-lg hover:scale-105 transition"><Icons.Send /></button>
+                                </form>
+                            </>
+                        ) : (
+                            <div className="h-full flex items-center justify-center font-bold text-nature-500">বাম দিক থেকে একজন শিক্ষক নির্বাচন করুন</div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // ─── MAIN PORTAL LAYOUT ───────────────────────────────────────────────────────
+        const StudentPortal = ({ user, onLogout }) => {
+            const [activeTab, setActiveTab] = useState('overview');
+            const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+            const TABS = [
+                { id: 'overview', icon: <Icons.Dashboard />, label: 'ওভারভিউ' },
+                { id: 'syllabus', icon: <Icons.Book />, label: 'সিলেবাস প্রগ্রেস' },
+                { id: 'routine', icon: <Icons.Calendar />, label: 'ক্লাস রুটিন' },
+                { id: 'chat', icon: <Icons.Chat />, label: 'Doubt Solving' },
+            ];
+
+            return (
+                <div className="min-h-screen flex flex-col md:flex-row relative z-10">
+                    {/* Mobile Header */}
+                    <div className="md:hidden glass-sidebar flex justify-between items-center p-4 z-50 shadow-sm">
+                        <div className="font-extrabold text-nature-950 flex items-center gap-2">
+                            <img src={LOGO_URL} alt="Logo" className="h-8" /> স্টুডেন্ট পোর্টাল
+                        </div>
+                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-nature-900 p-2 bg-white/50 rounded-lg border border-white">
+                            {isMobileMenuOpen ? <Icons.X /> : <Icons.Menu />}
+                        </button>
+                    </div>
+
+                    {/* Sidebar */}
+                    <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:flex absolute md:relative z-40 w-full md:w-72 min-h-screen glass-sidebar flex-col transition-all shadow-xl`}>
+                        <div className="p-8 border-b border-white/40 flex flex-col items-center text-center mt-12 md:mt-0">
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-extrabold text-3xl border-4 border-white shadow-lg mb-4">
+                                {user.name.split(' ')[0][0]}{user.name.split(' ')[1] ? user.name.split(' ')[1][0] : ''}
+                            </div>
+                            <h2 className="text-xl font-extrabold text-nature-950">{user.name}</h2>
+                            <p className="text-sm font-bold text-emerald-700 bg-white/60 px-3 py-1 rounded-lg mt-2 inline-block border border-white/50">{user.class} | রোল: {user.roll}</p>
+                        </div>
+
+                        <nav className="flex-1 p-6 space-y-3 overflow-y-auto">
+                            {TABS.map(tab => (
+                                <button key={tab.id} onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }}
+                                    className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-[15px] font-bold transition-all duration-300 ${activeTab === tab.id ? 'glass-btn shadow-lg transform scale-105' : 'text-nature-700 hover:bg-white/60 hover:shadow-sm border border-transparent hover:border-white/50'}`}>
+                                    {tab.icon} {tab.label}
+                                </button>
+                            ))}
+                        </nav>
+
+                        <div className="p-6 border-t border-white/40 space-y-3 bg-white/20">
+                            <a href="index.html" className="w-full flex items-center justify-center gap-2 text-nature-800 hover:text-emerald-700 font-bold py-2 transition"><Icons.Home /> মূল ওয়েবসাইট</a>
+                            <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-3.5 rounded-xl text-sm font-bold transition shadow-sm">লগআউট করুন</button>
+                        </div>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 overflow-y-auto">
+                        <div className="p-4 md:p-10 max-w-5xl mx-auto pb-24 min-h-full">
+                            <div className="hidden md:flex justify-between items-center mb-10 bg-white/40 backdrop-blur-md px-8 py-5 rounded-3xl border border-white/80 shadow-sm">
+                                <div>
+                                    <h1 className="text-2xl font-extrabold text-nature-950">স্বাগতম, {user.name.split(' ')[0]} 👋</h1>
+                                    <p className="text-sm font-medium text-nature-600 mt-1">আপনার আজকের পড়াশোনার আপডেট চেক করুন।</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs font-bold text-nature-500 uppercase tracking-widest">{new Date().toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                </div>
+                            </div>
+
+                            {activeTab === 'overview' && <OverviewPanel user={user} />}
+                            {activeTab === 'syllabus' && <SyllabusPanel user={user} />}
+                            {activeTab === 'routine'  && <RoutinePanel user={user} />}
+                            {activeTab === 'chat'     && <ChatPanel user={user} />}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ─── ROOT COMPONENT ───────────────────────────────────────────────────────────
+        const App = () => {
+            const [user, setUser] = useState(null);
+
+            useEffect(() => {
+                const loggedInUser = sessionStorage.getItem('janani_student');
+                if (loggedInUser) setUser(JSON.parse(loggedInUser));
+            }, []);
+
+            const handleLogin = (userData) => {
+                sessionStorage.setItem('janani_student', JSON.stringify(userData));
+                setUser(userData);
+            };
+
+            const handleLogout = () => {
+                sessionStorage.removeItem('janani_student');
+                setUser(null);
+            };
+
+            return (
+                <div className="min-h-screen">
+                    {!user ? <LoginView onLogin={handleLogin} /> : <StudentPortal user={user} onLogout={handleLogout} />}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
