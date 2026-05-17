@@ -5,13 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>জননী কোচিং সেন্টার - ফলাফল পোর্টাল</title>
     
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -24,14 +21,11 @@
         }
     </script>
 
-    <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     
-    <!-- Babel Standalone -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Firebase SDK (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
 
@@ -182,9 +176,17 @@
                     const studentTotal = Number(student.total) || 0;
                     const percentage = totalExamMarks > 0 ? (studentTotal / totalExamMarks) * 100 : 0;
 
+                    // Support for evaluatedDetails (new) OR answers (legacy)
+                    let displayAnswers = student.evaluatedDetails || student.answers || {};
+
                     setStudentResult({
-                        ...student, total: studentTotal, rank, percentage: percentage.toFixed(1),
-                        gradeInfo: getGradeInfo(percentage), examMeta,
+                        ...student, 
+                        evaluatedDetails: displayAnswers,
+                        total: studentTotal, 
+                        rank, 
+                        percentage: percentage.toFixed(1),
+                        gradeInfo: getGradeInfo(percentage), 
+                        examMeta,
                         fullMarks: { mcq: fullMarksMCQ, sq: fullMarksSQ, cq: fullMarksCQ, total: totalExamMarks }
                     });
 
@@ -285,8 +287,8 @@
                         {studentResult && classStats && (
                             <div className="space-y-8 animate-[fadeInUp_0.5s_ease-out]">
                                 
-                                {/* Top ID Card (Matched with Screenshot + Enhanced) */}
-                                <div className="glass-panel rounded-[40px] p-8 text-center relative border border-white mt-8 overflow-hidden">
+                                {/* Top ID Card */}
+                                <div className="glass-panel rounded-[40px] p-8 text-center relative border border-white mt-8 overflow-hidden shadow-[0_20px_50px_rgba(4,120,87,0.1)]">
                                     <div className="absolute -right-20 -top-20 w-64 h-64 bg-gradient-to-br from-emerald-300/30 to-teal-300/10 rounded-full blur-3xl pointer-events-none"></div>
 
                                     <div className="relative w-40 h-40 mx-auto mb-6">
@@ -333,7 +335,7 @@
                                     </div>
                                 </div>
 
-                                {/* Breakdowns (MCQ, SQ, CQ) */}
+                                {/* Breakdowns (MCQ Summary, SQ, CQ) */}
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                                     <div className="glass-card rounded-[35px] p-6">
                                         <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
@@ -400,7 +402,75 @@
                                     </div>
                                 </div>
 
-                                {/* Restore: Class Stats & Leaderboard */}
+                                {/* ── Detailed MCQ Grid (From evaluatedDetails) ── */}
+                                {studentResult.evaluatedDetails && Object.keys(studentResult.evaluatedDetails).length > 0 && (
+                                    <div className="glass-card rounded-[35px] p-6 sm:p-8">
+                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 pb-4 border-b border-gray-200 gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <i className="ph-bold ph-list-magnifying-glass text-emerald-500 text-xl"></i>
+                                                <h3 className="font-black text-emerald-900 text-lg">উত্তরপত্র বিশ্লেষণ</h3>
+                                            </div>
+                                            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">(শিক্ষার্থীর উত্তর vs সঠিক উত্তর)</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                            {[...Array(studentResult.fullMarks.mcq)].map((_, i) => {
+                                                const qNo = String(i + 1);
+                                                const ansData = studentResult.evaluatedDetails[qNo] || { status: 'skipped', studentAns: '-', correctAns: '-' };
+                                                
+                                                const isMultiple = ansData.studentAns === '?';
+                                                const isSkipped = ansData.studentAns === '-' || ansData.status === 'skipped';
+                                                
+                                                let bgClass = 'bg-gray-50 border-gray-200';
+                                                let textClass = 'text-gray-400';
+                                                let badgeClass = '';
+                                                let badgeText = '';
+                                                
+                                                if (ansData.status === 'correct') {
+                                                    bgClass = 'bg-emerald-50 border-emerald-100';
+                                                    textClass = 'text-emerald-800';
+                                                    badgeClass = 'bg-emerald-100 text-emerald-600';
+                                                } else if (isMultiple) {
+                                                    bgClass = 'bg-amber-50 border-amber-200';
+                                                    textClass = 'text-amber-600';
+                                                    badgeClass = 'bg-amber-100 text-amber-700';
+                                                    badgeText = 'একাধিক দাগানো';
+                                                } else if (ansData.status === 'wrong') {
+                                                    bgClass = 'bg-red-50 border-red-100';
+                                                    textClass = 'text-red-800';
+                                                    badgeClass = 'bg-red-100 text-red-600';
+                                                }
+                                                
+                                                return (
+                                                    <div key={qNo} className={`relative p-4 rounded-[20px] border flex flex-col items-center justify-center shadow-sm transition-all hover:-translate-y-1 ${bgClass}`}>
+                                                        <span className="text-[10px] font-bold text-gray-400 mb-1">Q {qNo}</span>
+                                                        
+                                                        {/* The Answer marked by student */}
+                                                        <span className={`text-2xl font-black mb-2 leading-none ${textClass}`}>
+                                                            {isMultiple ? '?' : (isSkipped ? '-' : ansData.studentAns)}
+                                                        </span>
+                                                        
+                                                        {/* Show correct answer badge if wrong or multiple marks */}
+                                                        {(ansData.status === 'wrong' || isMultiple) && !isSkipped && (
+                                                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
+                                                                {badgeText ? badgeText : `সঠিক: ${ansData.correctAns}`}
+                                                            </span>
+                                                        )}
+                                                        
+                                                        {/* Show checkmark if correct */}
+                                                        {ansData.status === 'correct' && (
+                                                            <div className="absolute bottom-2 right-2 text-emerald-400 opacity-60">
+                                                                <i className="ph-fill ph-check-circle text-lg"></i>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Class Stats & Leaderboard */}
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                     {/* Class Stats */}
                                     <div className="glass-panel rounded-[40px] p-6 sm:p-8 border border-white col-span-1">
